@@ -26,8 +26,14 @@ class TestResponseConsistency:
         correct_price = str(knowledge_base['products']['laptop_pro_x1']['price'])
 
         for i, resp in enumerate(responses):
-            # Accept both $1,299 and $1299 formats
-            if correct_price not in resp and f"${correct_price}" not in resp:
+            # Accept $1,299, $1299, or just 1299/1,299
+            price_found = (
+                correct_price in resp or
+                f"${correct_price}" in resp or
+                f"${int(correct_price):,}" in resp or
+                f"{int(correct_price):,}" in resp
+            )
+            if not price_found:
                 pytest.fail(f"INCONSISTENT: Response {i+1} missing correct price {correct_price}")
 
     def test_policy_consistency(self, api_client):
