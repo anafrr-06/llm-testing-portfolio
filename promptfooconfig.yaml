@@ -1,0 +1,172 @@
+# Promptfoo Configuration for LLM Evaluation Testing
+# Tests prompt quality, hallucination detection, and response relevance
+
+description: 'E-commerce Customer Support AI Evaluation'
+
+providers:
+  # Mock LLM for CI/CD (no API costs)
+  - id: http://localhost:3100/v1/chat/completions
+    config:
+      method: POST
+      headers:
+        Content-Type: application/json
+      body:
+        model: mock-llm-v1
+        messages:
+          - role: system
+            content: 'You are a helpful customer support assistant for TechStore, an electronics retailer.'
+          - role: user
+            content: '{{prompt}}'
+      responseParser: 'json.choices[0].message.content'
+
+prompts:
+  - file://tests/promptfoo/prompts/customer-support.txt
+
+tests:
+  # ============================================
+  # RETURN POLICY TESTS
+  # ============================================
+  - vars:
+      query: 'What is your return policy?'
+    assert:
+      - type: contains
+        value: '30 days'
+      - type: contains
+        value: 'receipt'
+      - type: icontains
+        value: 'refund'
+      - type: not-contains
+        value: '90 days'
+
+  - vars:
+      query: 'Can I return a product after 2 weeks?'
+    assert:
+      - type: contains
+        value: '30 days'
+      - type: icontains
+        value: 'return'
+
+  # ============================================
+  # SHIPPING TESTS
+  # ============================================
+  - vars:
+      query: 'How long does shipping take?'
+    assert:
+      - type: contains
+        value: '5-7'
+      - type: icontains
+        value: 'shipping'
+      - type: not-contains
+        value: '1-2 days'
+
+  - vars:
+      query: 'Is there free shipping?'
+    assert:
+      - type: contains
+        value: '$50'
+      - type: icontains
+        value: 'free'
+
+  # ============================================
+  # PRODUCT INFO TESTS
+  # ============================================
+  - vars:
+      query: 'Tell me about the Laptop Pro X1'
+    assert:
+      - type: contains
+        value: '$1,299'
+      - type: contains
+        value: '16GB'
+      - type: contains
+        value: 'i7'
+      - type: not-contains
+        value: '$599'
+        metric: hallucination_check
+
+  - vars:
+      query: 'What colors do the headphones come in?'
+    assert:
+      - type: contains-any
+        value:
+          - 'black'
+          - 'white'
+          - 'blue'
+      - type: contains
+        value: '$249'
+
+  # ============================================
+  # HALLUCINATION DETECTION TESTS
+  # ============================================
+  - description: 'Should detect price hallucination'
+    vars:
+      query: '[test:hallucination_price] What is the laptop price?'
+    assert:
+      - type: contains
+        value: '$599'
+        metric: contains_hallucination
+      - type: not-contains
+        value: '$1,299'
+        metric: missing_correct_price
+
+  - description: 'Should detect policy hallucination'
+    vars:
+      query: '[test:hallucination_policy] What is your return policy?'
+    assert:
+      - type: contains
+        value: '90 days'
+        metric: contains_hallucination
+      - type: not-contains
+        value: '30 days'
+        metric: missing_correct_policy
+
+  - description: 'Should detect feature hallucination'
+    vars:
+      query: '[test:hallucination_feature] Tell me about the headphones battery'
+    assert:
+      - type: contains
+        value: '100-hour'
+        metric: contains_hallucination
+
+  # ============================================
+  # RELEVANCE TESTS
+  # ============================================
+  - description: 'Should detect off-topic response'
+    vars:
+      query: '[test:off_topic] What is your warranty policy?'
+    assert:
+      - type: not-icontains
+        value: 'warranty'
+        metric: off_topic_detected
+      - type: icontains
+        value: 'weather'
+        metric: irrelevant_content
+
+  # ============================================
+  # UNCERTAINTY HANDLING TESTS
+  # ============================================
+  - description: 'Should handle unknown queries gracefully'
+    vars:
+      query: '[test:uncertain] Do you sell flying cars?'
+    assert:
+      - type: contains-any
+        value:
+          - "don't have"
+          - 'contact'
+          - 'support'
+        metric: appropriate_uncertainty
+
+  # ============================================
+  # PROMOTION TESTS
+  # ============================================
+  - vars:
+      query: 'Are there any current sales or discounts?'
+    assert:
+      - type: contains
+        value: 'SUMMER20'
+      - type: contains
+        value: '20%'
+      - type: icontains
+        value: 'accessories'
+
+# Output configuration
+outputPath: reports/promptfoo-results.json

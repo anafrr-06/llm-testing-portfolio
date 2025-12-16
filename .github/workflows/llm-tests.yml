@@ -1,0 +1,54 @@
+name: LLM Evaluation Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Start Mock LLM API
+        run: |
+          npm start &
+          sleep 3
+          curl -f http://localhost:3100/health || exit 1
+
+      - name: Run Promptfoo Evaluation Tests
+        run: npm run test:prompts
+
+      - name: Run Python Evaluation Tests
+        run: pytest tests/evaluations -v --tb=short
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            reports/
+          retention-days: 30

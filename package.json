@@ -1,0 +1,24 @@
+{
+  "name": "llm-testing-portfolio",
+  "version": "1.0.0",
+  "description": "LLM/AI Testing Portfolio - Prompt evaluation, hallucination detection, and quality assurance for AI applications",
+  "main": "api/src/index.js",
+  "scripts": {
+    "start": "node api/src/index.js",
+    "dev": "node --watch api/src/index.js",
+    "test:prompts": "npx promptfoo eval",
+    "test:prompts:view": "npx promptfoo view",
+    "test:eval": "python -m pytest tests/evaluations -v",
+    "test:all": "npm run test:prompts && npm run test:eval",
+    "report": "npx promptfoo eval --output reports/eval-results.json"
+  },
+  "keywords": ["llm", "testing", "ai", "promptfoo", "evaluation", "qa"],
+  "author": "Ana Flavia Roca Rojas",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "promptfoo": "^0.80.0"
+  }
+}
